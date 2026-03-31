@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Billable Hours Tracker</title>
+
+<!-- PWA / home-screen install -->
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#0f1117" id="theme-color-meta"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Hours"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+
+<style>
+:root{
+  --bg:#0f1117;--surface:#1e2130;--surface-hi:#161925;--surface-input:#252a3a;
+  --surface-hover:#252a3a;--border:#334155;--border-sub:#252a3a;
+  --t1:#f1f5f9;--t2:#e2e8f0;--t3:#cbd5e1;--t4:#94a3b8;--t5:#64748b;
+  --green:#34d399;--yellow:#fbbf24;--red:#f87171;--blue:#60a5fa;--purple:#a78bfa;
+  --bdg-green-bg:#052e16;--bdg-green-fg:#34d399;
+  --bdg-yellow-bg:#2d1f00;--bdg-yellow-fg:#fbbf24;
+  --bdg-red-bg:#2d0a0a;--bdg-red-fg:#f87171;
+  --bdg-gray-bg:#1e293b;--bdg-gray-fg:#64748b;
+  --bdg-blue-bg:#0c1a2e;--bdg-blue-fg:#60a5fa;
+}
+[data-theme=light]{
+  --bg:#f1f5f9;--surface:#ffffff;--surface-hi:#f8fafc;--surface-input:#f1f5f9;
+  --surface-hover:#f1f5f9;--border:#cbd5e1;--border-sub:#e2e8f0;
+  --t1:#0f172a;--t2:#1e293b;--t3:#334155;--t4:#475569;--t5:#64748b;
+  --green:#059669;--yellow:#d97706;--red:#dc2626;--blue:#2563eb;--purple:#7c3aed;
+  --bdg-green-bg:#dcfce7;--bdg-green-fg:#166534;
+  --bdg-yellow-bg:#fef9c3;--bdg-yellow-fg:#854d0e;
+  --bdg-red-bg:#fee2e2;--bdg-red-fg:#991b1b;
+  --bdg-gray-bg:#e2e8f0;--bdg-gray-fg:#475569;
+  --bdg-blue-bg:#dbeafe;--bdg-blue-fg:#1e40af;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:var(--bg);color:var(--t2);min-height:100vh;
+  /* Respect iPhone notch / home indicator */
+  padding: calc(env(safe-area-inset-top) + 16px)
+           calc(env(safe-area-inset-right) + 16px)
+           calc(env(safe-area-inset-bottom) + 16px)
+           calc(env(safe-area-inset-left) + 16px);
+  transition:background .2s,color .2s;
+}
+h1{font-size:18px;font-weight:600;color:var(--t1);margin-bottom:6px}
+.sub{font-size:13px;color:var(--t5);margin-bottom:16px}
+.settings-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.settings-label{font-size:12px;color:var(--t5)}
+.metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
+@media(min-width:540px){.metrics{grid-template-columns:repeat(4,1fr)}}
+.card{background:var(--surface);border-radius:10px;padding:12px 14px;transition:background .2s}
+.card-label{font-size:11px;color:var(--t5);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.card-val{font-size:22px;font-weight:600}
+.card-sub{font-size:11px;color:var(--t5);margin-top:2px}
+.green{color:var(--green)}.yellow{color:var(--yellow)}.red{color:var(--red)}.blue{color:var(--blue)}.purple{color:var(--purple)}
+.targets{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+@media(max-width:400px){.targets{grid-template-columns:1fr}}
+.tcard{background:var(--surface);border-radius:10px;padding:12px 14px;text-align:center;transition:background .2s}
+.tcard-label{font-size:11px;color:var(--t5);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.tcard-val{font-size:24px;font-weight:700;margin-bottom:2px}
+.tcard-sub{font-size:11px;color:var(--t5)}
+/* Scrollable table wrapper on small screens */
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px}
+table{width:100%;border-collapse:collapse;background:var(--surface);font-size:13px;transition:background .2s}
+th{background:var(--surface-hi);color:var(--t5);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:10px 10px;text-align:left;transition:background .2s}
+th.r,td.r{text-align:right}
+td{padding:10px 10px;border-top:1px solid var(--border-sub);color:var(--t3);transition:background .2s,color .2s}
+tr:active td{background:var(--surface-hover)}
+/* Larger tap targets for inputs on touch */
+input[type=number]{background:var(--surface-input);border:1px solid var(--border);border-radius:6px;color:var(--t2);padding:6px 8px;width:72px;font-size:14px;text-align:right;-webkit-appearance:none;transition:background .2s,border-color .2s,color .2s}
+input[type=number]:focus{outline:none;border-color:var(--blue)}
+select{background:var(--surface-input);border:1px solid var(--border);border-radius:6px;color:var(--t2);padding:6px 8px;font-size:13px;transition:background .2s,color .2s}
+.btn{background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer;font-weight:500;-webkit-tap-highlight-color:transparent}
+.btn:active{background:#2563eb}
+.badge{display:inline-block;padding:2px 7px;border-radius:99px;font-size:11px;font-weight:600}
+.badge-green{background:var(--bdg-green-bg);color:var(--bdg-green-fg)}
+.badge-yellow{background:var(--bdg-yellow-bg);color:var(--bdg-yellow-fg)}
+.badge-red{background:var(--bdg-red-bg);color:var(--bdg-red-fg)}
+.badge-gray{background:var(--bdg-gray-bg);color:var(--bdg-gray-fg)}
+.badge-blue{background:var(--bdg-blue-bg);color:var(--bdg-blue-fg)}
+.progress-wrap{background:var(--border-sub);border-radius:99px;height:6px;margin-top:6px;overflow:hidden}
+.progress-bar{height:100%;border-radius:99px;transition:width .4s}
+.toast{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 20px);left:50%;transform:translateX(-50%);background:var(--green);color:#052e16;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+.section-title{font-size:12px;font-weight:600;color:var(--t4);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em}
+.btn-ghost{background:transparent;color:var(--t5);border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:500;-webkit-tap-highlight-color:transparent;transition:background .2s,color .2s}
+.btn-ghost:active{background:var(--surface);color:var(--t2)}
+.theme-toggle{background:transparent;border:1px solid var(--border);border-radius:6px;padding:4px 9px;font-size:16px;cursor:pointer;line-height:1.5;-webkit-tap-highlight-color:transparent;transition:background .2s}
+/* History panel */
+.hist-panel{display:none;position:fixed;inset:0;background:var(--bg);z-index:200;overflow-y:auto;
+  padding: calc(env(safe-area-inset-top) + 16px)
+           calc(env(safe-area-inset-right) + 16px)
+           calc(env(safe-area-inset-bottom) + 16px)
+           calc(env(safe-area-inset-left) + 16px);
+  transition:background .2s}
+.hist-inner{max-width:960px;margin:0 auto}
+.hist-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.hist-tabs{display:flex;gap:4px;background:var(--surface-hi);border-radius:8px;padding:3px;margin-bottom:16px;transition:background .2s}
+.hist-tab{flex:1;text-align:center;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:600;color:var(--t5);cursor:pointer;border:none;background:transparent;text-transform:uppercase;letter-spacing:.05em;transition:background .2s,color .2s}
+.hist-tab.active{background:var(--surface);color:var(--t2)}
+.add-year-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+svg text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+.chart-wrap{background:var(--surface);border-radius:10px;padding:14px;margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;transition:background .2s}
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--t4)}
+.legend-swatch{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+</style>
+</head>
+<body>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+  <h1>⚖️ Billable Hours Tracker</h1>
+  <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()">🌙</button>
+</div>
+<div class="sub" id="fy-label"></div>
+
+<!-- Settings rows -->
+<div class="settings-row">
+  <span class="settings-label">Target:</span>
+  <input type="number" id="target-input" value="1800" min="100" max="9999" step="50"
+    style="width:84px" inputmode="numeric"/>
+  <span class="settings-label">hrs</span>
+  <button class="btn" style="padding:6px 12px;font-size:12px" onclick="saveTarget()">Set</button>
+</div>
+<div class="settings-row" style="margin-bottom:14px">
+  <span class="settings-label">Workdays/yr:</span>
+  <input type="number" id="workdays-input" value="260" min="100" max="366" step="1"
+    style="width:72px" inputmode="numeric"/>
+  <button class="btn" style="padding:6px 12px;font-size:12px" onclick="saveWorkdays()">Set</button>
+  <button class="btn-ghost" onclick="openHistory()">📈 History</button>
+</div>
+
+<div class="metrics" id="metrics"></div>
+
+<div class="section-title">Pace Targets</div>
+<div class="targets" id="targets"></div>
+
+<div class="section-title" style="margin-top:16px">Monthly Log</div>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Month</th>
+        <th class="r">Hours</th>
+        <th class="r">Days</th>
+        <th class="r">Avg/Day</th>
+        <th class="r">Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<div class="toast" id="toast">Saved ✓</div>
+
+<!-- ── History Panel ─────────────────────────────────────────────────────── -->
+<div class="hist-panel" id="hist-panel">
+  <div class="hist-inner">
+    <div class="hist-header">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="btn-ghost" onclick="closeHistory()">← Back</button>
+        <span style="font-size:16px;font-weight:600;color:var(--t1)">📈 History &amp; Trends</span>
+      </div>
+      <div class="add-year-row">
+        <span style="font-size:12px;color:var(--t5)">Add FY end year:</span>
+        <input type="number" id="hist-add-year" placeholder="e.g. 2024" min="2000" max="2100"
+          style="width:110px;font-size:13px" inputmode="numeric"
+          onkeydown="if(event.key==='Enter')addHistYear()"/>
+        <button class="btn" style="padding:6px 12px;font-size:12px" onclick="addHistYear()">+ Add</button>
+      </div>
+    </div>
+
+    <div class="hist-tabs">
+      <button class="hist-tab active" id="hist-tab-trends" onclick="switchHistTab('trends')">Trends</button>
+      <button class="hist-tab" id="hist-tab-data" onclick="switchHistTab('data')">Data Entry</button>
+    </div>
+
+    <div id="hist-trends"><div style="color:var(--t5);font-size:13px">Loading…</div></div>
+
+    <div id="hist-data" style="display:none">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <span style="font-size:12px;color:var(--t5);text-transform:uppercase;letter-spacing:.05em;font-weight:600">Year:</span>
+        <select id="hist-year-sel" onchange="changeHistYear(this.value)"></select>
+      </div>
+      <div class="table-wrap"><div id="hist-data-table"></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── localStorage storage bridge (same API as the Mac app's window.storage) ──
+window.storage = {
+  get: (key) => {
+    const val = localStorage.getItem(key);
+    return Promise.resolve(val !== null ? { value: val } : null);
+  },
+  set: (key, value) => {
+    localStorage.setItem(key, value);
+    return Promise.resolve(true);
+  }
+};
+
+// ── Register service worker for offline use ──────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+// ── App logic (identical to Mac app) ─────────────────────────────────────────
+let TARGET = 1800;
+let TOTAL_WORKDAYS = null;
+const MONTHS = [
+  {key:'nov',label:'November',fy:1},
+  {key:'dec',label:'December',fy:2},
+  {key:'jan',label:'January',fy:3},
+  {key:'feb',label:'February',fy:4},
+  {key:'mar',label:'March',fy:5},
+  {key:'apr',label:'April',fy:6},
+  {key:'may',label:'May',fy:7},
+  {key:'jun',label:'June',fy:8},
+  {key:'jul',label:'July',fy:9},
+  {key:'aug',label:'August',fy:10},
+  {key:'sep',label:'September',fy:11},
+  {key:'oct',label:'October',fy:12},
+];
+const CAL_TO_KEY = {10:'nov',11:'dec',0:'jan',1:'feb',2:'mar',3:'apr',4:'may',5:'jun',6:'jul',7:'aug',8:'sep',9:'oct'};
+
+function getFYEndYear(){
+  const now = new Date();
+  return now.getMonth() >= 10 ? now.getFullYear() + 1 : now.getFullYear();
+}
+function getFYStorageKey(){ return 'billable_fy' + getFYEndYear(); }
+function getCurrentFYMonth(){ return CAL_TO_KEY[new Date().getMonth()] || 'nov'; }
+function getFYMonthIndex(key){ return MONTHS.findIndex(m=>m.key===key); }
+
+function getWorkdays(year,month){
+  const days=new Date(year,month+1,0).getDate(); let count=0;
+  for(let d=1;d<=days;d++){ const dow=new Date(year,month,d).getDay(); if(dow!==0&&dow!==6) count++; }
+  return count;
+}
+function getWorkdaysRemaining(year,month,fromDay){
+  const days=new Date(year,month+1,0).getDate(); let count=0;
+  for(let d=fromDay;d<=days;d++){ const dow=new Date(year,month,d).getDay(); if(dow!==0&&dow!==6) count++; }
+  return count;
+}
+function iterateFYMonths(cb){
+  const now=new Date();
+  const fyEndYear=now.getMonth()>=10?now.getFullYear()+1:now.getFullYear();
+  const calMap={nov:10,dec:11,jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9};
+  MONTHS.forEach((m,i)=>{ const cm=calMap[m.key],cy=cm>=10?fyEndYear-1:fyEndYear; cb(m,i,cy,cm); });
+}
+function getTotalFYWorkdays(){ let t=0; iterateFYMonths((_,__,cy,cm)=>{ t+=getWorkdays(cy,cm); }); return t; }
+function getRemainingFYWorkdays(){
+  const now=new Date(),ci=getFYMonthIndex(CAL_TO_KEY[now.getMonth()]); let raw=0;
+  iterateFYMonths((_,i,cy,cm)=>{
+    if(i<ci) return;
+    raw+= i===ci ? getWorkdaysRemaining(cy,cm,now.getDate()) : getWorkdays(cy,cm);
+  });
+  if(TOTAL_WORKDAYS){ const rt=getTotalFYWorkdays(); return Math.round(raw*(TOTAL_WORKDAYS/rt)); }
+  return raw;
+}
+function getWorkdaysThisWeek(){
+  const day=new Date().getDay(); if(day===0) return 5; if(day===6) return 0;
+  let c=0; for(let d=day;d<=5;d++) if(d>=1&&d<=5) c++; return c;
+}
+function getWorkdaysThisMonth(){
+  const n=new Date(); return getWorkdaysRemaining(n.getFullYear(),n.getMonth(),n.getDate());
+}
+
+async function loadData(){
+  try{ const r=await window.storage.get(getFYStorageKey()); return r?JSON.parse(r.value):{};  }catch(e){ return {}; }
+}
+async function saveData(d){ try{ await window.storage.set(getFYStorageKey(),JSON.stringify(d)); }catch(e){} }
+async function loadTarget(){
+  try{ const r=await window.storage.get('billable_target'); return r?parseInt(r.value)||1800:1800; }catch(e){ return 1800; }
+}
+window.saveTarget=async function(){
+  const val=parseInt(document.getElementById('target-input').value)||1800;
+  TARGET=val; await window.storage.set('billable_target',String(val)); showToast(); render();
+};
+window.saveWorkdays=async function(){
+  const val=parseInt(document.getElementById('workdays-input').value)||0;
+  TOTAL_WORKDAYS=val>0?val:null;
+  await window.storage.set('billable_workdays',val>0?String(val):''); showToast(); render();
+};
+
+function showToast(){ const t=document.getElementById('toast'); t.style.opacity=1; setTimeout(()=>t.style.opacity=0,1800); }
+function fmt(n){ return n%1===0?n.toString():n.toFixed(1); }
+
+async function render(){
+  const data=await loadData();
+  const currentKey=getCurrentFYMonth(), currentIdx=getFYMonthIndex(currentKey);
+  let totalLogged=0;
+  MONTHS.forEach(m=>{ if(data[m.key]) totalLogged+=parseFloat(data[m.key].hours||0); });
+  const remaining=Math.max(0,TARGET-totalLogged);
+  const pct=Math.min(100,(totalLogged/TARGET)*100);
+  const remainDays=getRemainingFYWorkdays();
+  const neededPerDay=remainDays>0?remaining/remainDays:0;
+
+  document.getElementById('metrics').innerHTML=`
+    <div class="card">
+      <div class="card-label">Hours Logged</div>
+      <div class="card-val ${pct>=100?'green':pct>=50?'yellow':'red'}">${fmt(totalLogged)}</div>
+      <div class="card-sub">of ${TARGET} target</div>
+      <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%;background:${pct>=100?'var(--green)':pct>=50?'var(--yellow)':'var(--red)'}"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Remaining</div>
+      <div class="card-val ${remaining<=0?'green':remaining<=500?'yellow':'red'}">${fmt(remaining)}</div>
+      <div class="card-sub">hours to bonus</div>
+    </div>
+    <div class="card">
+      <div class="card-label">FY Progress</div>
+      <div class="card-val blue">${fmt(pct)}%</div>
+      <div class="card-sub">${currentIdx+1} of 12 months</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Workdays Left</div>
+      <div class="card-val purple">${remainDays}</div>
+      <div class="card-sub">in fiscal year</div>
+    </div>`;
+
+  const weeksLeft=remainDays/5, monthsLeft=Math.max(1,12-currentIdx);
+  const weeklyAvgNeeded=weeksLeft>0?remaining/weeksLeft:0;
+  const monthlyAvgNeeded=monthsLeft>0?remaining/monthsLeft:0;
+  const dc=neededPerDay<=8?'var(--green)':neededPerDay<=10?'var(--yellow)':'var(--red)';
+  const wc=weeklyAvgNeeded<=40?'var(--green)':weeklyAvgNeeded<=50?'var(--yellow)':'var(--red)';
+  const mc=monthlyAvgNeeded<=175?'var(--green)':monthlyAvgNeeded<=220?'var(--yellow)':'var(--red)';
+  document.getElementById('targets').innerHTML=`
+    <div class="tcard">
+      <div class="tcard-label">Daily Avg</div>
+      <div class="tcard-val" style="color:${dc}">${fmt(neededPerDay)}h</div>
+      <div class="tcard-sub">${remainDays} days left</div>
+    </div>
+    <div class="tcard">
+      <div class="tcard-label">Weekly Avg</div>
+      <div class="tcard-val" style="color:${wc}">${fmt(weeklyAvgNeeded)}h</div>
+      <div class="tcard-sub">${fmt(weeksLeft)} wks left</div>
+    </div>
+    <div class="tcard">
+      <div class="tcard-label">Monthly Avg</div>
+      <div class="tcard-val" style="color:${mc}">${fmt(monthlyAvgNeeded)}h</div>
+      <div class="tcard-sub">${monthsLeft} mo left</div>
+    </div>`;
+
+  const tbody=document.getElementById('tbody'); tbody.innerHTML='';
+  MONTHS.forEach((m,i)=>{
+    const d=data[m.key]||{}, isCurrent=i===getFYMonthIndex(getCurrentFYMonth());
+    const hrs=parseFloat(d.hours||0), days=parseInt(d.days||0), avg=days>0?fmt(hrs/days):'—';
+    let badge='';
+    if(hrs===0) badge=`<span class="badge badge-gray">—</span>`;
+    else if(days>0){ const a=hrs/days; badge=a>=8?`<span class="badge badge-green">✓</span>`:a>=6?`<span class="badge badge-yellow">~</span>`:`<span class="badge badge-red">↓</span>`; }
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td style="color:${isCurrent?'var(--blue)':'inherit'};font-weight:${isCurrent?'600':'400'}">${m.label.slice(0,3)}${isCurrent?' ◀':''}</td>
+      <td class="r"><input type="number" id="h-${m.key}" value="${d.hours||''}" placeholder="0" step="0.1" inputmode="decimal"/></td>
+      <td class="r"><input type="number" id="d-${m.key}" value="${d.days||''}" placeholder="0" style="width:52px" inputmode="numeric"/></td>
+      <td class="r">${avg}</td>
+      <td class="r">${badge}</td>
+      <td style="text-align:right"><button class="btn" style="padding:5px 10px;font-size:12px" onclick="saveMonth('${m.key}')">Save</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+window.saveMonth=async function(key){
+  const hEl=document.getElementById(`h-${key}`), dEl=document.getElementById(`d-${key}`);
+  if(!hEl) return;
+  const data=await loadData();
+  data[key]={hours:parseFloat(hEl.value)||0,days:parseInt(dEl.value)||0};
+  await saveData(data); showToast(); render();
+};
+
+// ── Theme ────────────────────────────────────────────────────────────────────
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme',theme);
+  document.getElementById('theme-toggle').textContent=theme==='dark'?'🌙':'☀️';
+  document.getElementById('theme-color-meta').setAttribute('content',theme==='dark'?'#0f1117':'#f1f5f9');
+}
+window.toggleTheme=async function(){
+  const next=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
+  applyTheme(next); await window.storage.set('billable_theme',next);
+};
+
+// ── History ──────────────────────────────────────────────────────────────────
+const YEAR_COLORS=['#60a5fa','#34d399','#fbbf24','#f87171','#a78bfa','#fb923c','#e879f9','#22d3ee'];
+let histTab='trends', histYear=null;
+
+async function loadYearsList(){ try{ const r=await window.storage.get('billable_years'); return r?JSON.parse(r.value):[]; }catch(e){ return []; } }
+async function saveYearsList(y){ try{ await window.storage.set('billable_years',JSON.stringify(y)); }catch(e){} }
+async function loadYearData(y){ try{ const r=await window.storage.get('billable_fy'+y); return r?JSON.parse(r.value):{}; }catch(e){ return {}; } }
+async function saveYearData(y,d){ try{ await window.storage.set('billable_fy'+y,JSON.stringify(d)); }catch(e){} }
+async function getAllYears(){ const s=await loadYearsList(); return Array.from(new Set([getFYEndYear(),...s])).sort((a,b)=>a-b); }
+async function ensureYearTracked(y){ const l=await loadYearsList(); if(!l.includes(y)){ l.push(y); await saveYearsList(l); } }
+
+window.openHistory=async function(){ document.getElementById('hist-panel').style.display='block'; if(!histYear) histYear=getFYEndYear(); await renderHistory(); };
+window.closeHistory=function(){ document.getElementById('hist-panel').style.display='none'; };
+window.switchHistTab=async function(tab){
+  histTab=tab;
+  document.getElementById('hist-tab-trends').classList.toggle('active',tab==='trends');
+  document.getElementById('hist-tab-data').classList.toggle('active',tab==='data');
+  document.getElementById('hist-trends').style.display=tab==='trends'?'':'none';
+  document.getElementById('hist-data').style.display=tab==='data'?'':'none';
+  if(tab==='trends') await renderTrends(); else await renderYearDataTable(histYear);
+};
+window.changeHistYear=async function(y){ histYear=parseInt(y); await renderYearDataTable(histYear); };
+window.addHistYear=async function(){
+  const el=document.getElementById('hist-add-year'), y=parseInt(el.value);
+  if(!y||y<2000||y>2100) return;
+  await ensureYearTracked(y); histYear=y; el.value=''; await renderHistory();
+};
+window.saveHistMonth=async function(key,y){
+  const hEl=document.getElementById('hh-'+key), dEl=document.getElementById('dd-'+key);
+  if(!hEl) return;
+  const data=await loadYearData(y);
+  data[key]={hours:parseFloat(hEl.value)||0,days:parseInt(dEl.value)||0};
+  await saveYearData(y,data); await ensureYearTracked(y); showToast();
+  if(y===getFYEndYear()) render();
+};
+
+async function renderHistory(){
+  const years=await getAllYears(); if(!histYear) histYear=years[years.length-1];
+  const sel=document.getElementById('hist-year-sel');
+  if(sel) sel.innerHTML=years.slice().reverse().map(y=>`<option value="${y}" ${y===histYear?'selected':''}>FY ${y-1}–${y}</option>`).join('');
+  if(histTab==='trends') await renderTrends(); else await renderYearDataTable(histYear);
+}
+
+async function renderTrends(){
+  const years=await getAllYears();
+  if(!years.length){ document.getElementById('hist-trends').innerHTML='<p style="color:var(--t5);font-size:13px">No data yet.</p>'; return; }
+  const allData={}; for(const y of years) allData[y]=await loadYearData(y);
+  const totals=years.map(y=>{ let t=0; MONTHS.forEach(m=>{ t+=parseFloat(allData[y][m.key]?.hours||0); }); return {y,t}; });
+  const monthlyByYear={}; years.forEach(y=>{ monthlyByYear[y]=MONTHS.map(m=>parseFloat(allData[y][m.key]?.hours||0)); });
+  let html='';
+  html+=`<div class="section-title">Annual Totals</div><div class="chart-wrap">${svgBarChart(totals)}</div>`;
+  html+=`<div class="section-title">Monthly Patterns</div><div class="chart-wrap">`;
+  html+=`<div class="legend">`;
+  years.forEach((y,i)=>{ html+=`<div class="legend-item"><div class="legend-swatch" style="background:${YEAR_COLORS[i%YEAR_COLORS.length]}"></div>FY ${y-1}–${y}</div>`; });
+  html+=`</div>${svgLineChart(MONTHS.map(m=>m.label.slice(0,3)),years,monthlyByYear)}</div>`;
+  html+=`<div class="section-title">Month-by-Month Summary</div><div class="table-wrap"><table><thead><tr><th>Month</th>`;
+  years.forEach((y,i)=>{ html+=`<th class="r" style="color:${YEAR_COLORS[i%YEAR_COLORS.length]}">FY'${String(y).slice(2)}</th>`; });
+  html+=`<th class="r" style="color:var(--t4)">Avg</th></tr></thead><tbody>`;
+  MONTHS.forEach(m=>{
+    const vals=years.map(y=>parseFloat(allData[y][m.key]?.hours||0));
+    const filled=vals.filter(v=>v>0), avg=filled.length?filled.reduce((a,b)=>a+b,0)/filled.length:0;
+    html+=`<tr><td>${m.label.slice(0,3)}</td>`;
+    vals.forEach(v=>{ html+=`<td class="r">${v>0?fmt(v):'—'}</td>`; });
+    html+=`<td class="r" style="color:var(--t4)">${avg>0?fmt(avg):'—'}</td></tr>`;
+  });
+  html+=`<tr style="font-weight:600"><td>Total</td>`;
+  years.forEach(y=>{ let t=0; MONTHS.forEach(m=>{ t+=parseFloat(allData[y][m.key]?.hours||0); }); html+=`<td class="r">${t>0?fmt(t):'—'}</td>`; });
+  const ga=years.map(y=>{ let t=0; MONTHS.forEach(m=>{ t+=parseFloat(allData[y][m.key]?.hours||0); }); return t; }).filter(v=>v>0);
+  html+=`<td class="r" style="color:var(--t4)">${ga.length?fmt(ga.reduce((a,b)=>a+b,0)/ga.length):'—'}</td></tr></tbody></table></div>`;
+  document.getElementById('hist-trends').innerHTML=html;
+}
+
+function svgBarChart(totals){
+  if(!totals.length) return '';
+  const W=600,H=190,pL=48,pR=40,pT=22,pB=36,cW=W-pL-pR,cH=H-pT-pB;
+  const maxV=Math.max(...totals.map(d=>d.t),TARGET)*1.15||1;
+  const bW=Math.min(52,cW/totals.length-8);
+  let s=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">`;
+  [0,.25,.5,.75,1].forEach(f=>{
+    const y=pT+cH-f*cH;
+    s+=`<line x1="${pL}" y1="${y}" x2="${W-pR}" y2="${y}" style="stroke:var(--border-sub)" stroke-width="1"/>`;
+    s+=`<text x="${pL-4}" y="${y+4}" text-anchor="end" style="fill:var(--t5)" font-size="10">${Math.round(f*maxV)}</text>`;
+  });
+  const tY=pT+cH-(TARGET/maxV)*cH;
+  s+=`<line x1="${pL}" y1="${tY}" x2="${W-pR}" y2="${tY}" style="stroke:var(--red)" stroke-width="1.5" stroke-dasharray="5,3"/>`;
+  s+=`<text x="${W-pR+4}" y="${tY+4}" style="fill:var(--red)" font-size="9">Goal</text>`;
+  totals.forEach((d,i)=>{
+    const slotW=cW/totals.length, x=pL+i*slotW+(slotW-bW)/2;
+    const bH=(d.t/maxV)*cH, y=pT+cH-bH;
+    const col=d.t>=TARGET?'var(--green)':d.t>=TARGET*0.8?'var(--yellow)':'var(--blue)';
+    s+=`<rect x="${x}" y="${y}" width="${bW}" height="${bH}" rx="3" style="fill:${col}"/>`;
+    if(d.t>0) s+=`<text x="${x+bW/2}" y="${Math.max(y-4,pT+10)}" text-anchor="middle" style="fill:var(--t2)" font-size="10">${Math.round(d.t)}</text>`;
+    s+=`<text x="${x+bW/2}" y="${pT+cH+14}" text-anchor="middle" style="fill:var(--t5)" font-size="10">FY'${String(d.y).slice(2)}</text>`;
+  });
+  return s+`</svg>`;
+}
+
+function svgLineChart(labels,years,byYear){
+  const W=620,H=200,pL=48,pR=16,pT=18,pB=28,cW=W-pL-pR,cH=H-pT-pB;
+  const allV=years.flatMap(y=>byYear[y]), maxV=Math.max(...allV,10)*1.1;
+  let s=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">`;
+  [0,.25,.5,.75,1].forEach(f=>{
+    const y=pT+cH-f*cH;
+    s+=`<line x1="${pL}" y1="${y}" x2="${W-pR}" y2="${y}" style="stroke:var(--border-sub)" stroke-width="1"/>`;
+    s+=`<text x="${pL-4}" y="${y+4}" text-anchor="end" style="fill:var(--t5)" font-size="10">${Math.round(f*maxV)}</text>`;
+  });
+  labels.forEach((lbl,i)=>{
+    const x=pL+(i/(labels.length-1))*cW;
+    s+=`<text x="${x}" y="${pT+cH+15}" text-anchor="middle" style="fill:var(--t5)" font-size="10">${lbl}</text>`;
+  });
+  years.forEach((y,yi)=>{
+    const col=YEAR_COLORS[yi%YEAR_COLORS.length], vals=byYear[y];
+    let lastIdx=-1; vals.forEach((v,i)=>{ if(v>0) lastIdx=i; });
+    if(lastIdx<0) return;
+    let path='',started=false;
+    vals.forEach((v,i)=>{
+      if(i>lastIdx) return;
+      const x=pL+(i/(labels.length-1))*cW, yy=pT+cH-(v/maxV)*cH;
+      if(!started){ path+=`M${x} ${yy}`; started=true; } else path+=`L${x} ${yy}`;
+    });
+    s+=`<path d="${path}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    vals.forEach((v,i)=>{ if(i>lastIdx||v===0) return; const x=pL+(i/(labels.length-1))*cW, yy=pT+cH-(v/maxV)*cH; s+=`<circle cx="${x}" cy="${yy}" r="3" fill="${col}"/>`; });
+  });
+  return s+`</svg>`;
+}
+
+async function renderYearDataTable(y){
+  if(!y) return;
+  const data=await loadYearData(y);
+  let html=`<table><thead><tr><th>Month</th><th class="r">Hours</th><th class="r">Days</th><th class="r">Avg</th><th></th></tr></thead><tbody>`;
+  MONTHS.forEach(m=>{
+    const d=data[m.key]||{}, hrs=parseFloat(d.hours||0), days=parseInt(d.days||0), avg=days>0?fmt(hrs/days):'—';
+    html+=`<tr>
+      <td>${m.label.slice(0,3)}</td>
+      <td class="r"><input type="number" id="hh-${m.key}" value="${d.hours||''}" placeholder="0" step="0.1" inputmode="decimal"/></td>
+      <td class="r"><input type="number" id="dd-${m.key}" value="${d.days||''}" placeholder="0" style="width:52px" inputmode="numeric"/></td>
+      <td class="r">${avg}</td>
+      <td style="text-align:right"><button class="btn" style="padding:5px 10px;font-size:12px" onclick="saveHistMonth('${m.key}',${y})">Save</button></td>
+    </tr>`;
+  });
+  document.getElementById('hist-data-table').innerHTML=html+`</tbody></table>`;
+}
+
+async function init(){
+  try{ const r=await window.storage.get('billable_theme'); applyTheme(r?r.value:'dark'); }catch(e){ applyTheme('dark'); }
+  const fyEnd=getFYEndYear();
+  document.getElementById('fy-label').textContent=`FY Nov ${fyEnd-1} – Oct ${fyEnd}`;
+  TARGET=await loadTarget();
+  document.getElementById('target-input').value=TARGET;
+  try{ const r=await window.storage.get('billable_workdays'); const wv=r?parseInt(r.value)||0:0; if(wv>0){ TOTAL_WORKDAYS=wv; document.getElementById('workdays-input').value=wv; } }catch(e){}
+  render();
+}
+init();
+</script>
+</body>
+</html>
